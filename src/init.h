@@ -9,7 +9,6 @@
 
 #include <string>
 
-class CScheduler;
 class CWallet;
 
 namespace boost
@@ -21,9 +20,8 @@ extern CWallet* pwalletMain;
 
 void StartShutdown();
 bool ShutdownRequested();
-/** Interrupt threads */
-void Interrupt();
 void Shutdown();
+void Interrupt();
 void PrepareShutdown();
 bool AppInit2();
 
