@@ -28,6 +28,7 @@
 #include "net.h"
 #include "rpc/server.h"
 #include "script/standard.h"
+#include "scheduler.h"
 #include "spork.h"
 #include "sporkdb.h"
 #include "txdb.h"
