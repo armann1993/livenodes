@@ -292,6 +292,23 @@ public:
 
         SetNull();
     }
+    
+    /** Process a Obfuscation message using the Obfuscation protocol
+    * \param pfrom
+    * \param strCommand lower case command string; valid values are:
+    *        Command  | Description
+    *        -------- | -----------------
+    *        dsa      | Obfuscation Acceptable
+    *        dsc      | Obfuscation Complete
+    *        dsf      | Obfuscation Final tx
+    *        dsi      | Obfuscation vIn
+    *        dsq      | Obfuscation Queue
+    *        dss      | Obfuscation Signal Final Tx
+    *        dssu     | Obfuscation status update
+    *        dssub    | Obfuscation Subscribe To
+    * \param vRecv
+    */
+    void ProcessMessageObfuscation(CNode* pfrom, std::string& strCommand, CDataStream& vRecv);
 
     void InitCollateralAddress()
     {
