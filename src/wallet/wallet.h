@@ -55,6 +55,10 @@ static const CAmount DEFAULT_TRANSACTION_MAXFEE = 1 * COIN;
 static const CAmount nHighTransactionMaxFeeWarning = 100 * nHighTransactionFeeWarning;
 //! Largest (in bytes) free transaction we're willing to create
 static const unsigned int MAX_FREE_TRANSACTION_CREATE_SIZE = 1000;
+//! -custombackupthreshold default
+static const int DEFAULT_CUSTOMBACKUPTHRESHOLD = 1;
+//! -enableautoconvertaddress default
+static const bool DEFAULT_AUTOCONVERTADDRESS = true;
 
 class CAccountingEntry;
 class CCoinControl;
@@ -165,7 +169,7 @@ private:
 
 public:
     bool MintableCoins();
-    bool SelectStakeCoins(std::set<std::pair<const CWalletTx*, unsigned int> >& setCoins, CAmount nTargetAmount) const;
+    bool SelectStakeCoins(std::list<std::unique_ptr<CStakeInput> >& listInputs, CAmount nTargetAmount, bool fPrecompute = false);
     bool SelectCoinsDark(CAmount nValueMin, CAmount nValueMax, std::vector<CTxIn>& setCoinsRet, CAmount& nValueRet, int nObfuscationRoundsMin, int nObfuscationRoundsMax) const;
     bool SelectCoinsByDenominations(int nDenom, CAmount nValueMin, CAmount nValueMax, std::vector<CTxIn>& vCoinsRet, std::vector<COutput>& vCoinsRet2, CAmount& nValueRet, int nObfuscationRoundsMin, int nObfuscationRoundsMax);
     bool SelectCoinsDarkDenominated(CAmount nTargetValue, std::vector<CTxIn>& setCoinsRet, CAmount& nValueRet) const;
@@ -250,7 +254,7 @@ public:
         nHashDrift = 180;
         nStakeSplitThreshold = 500;
         nHashInterval = 22;
-        nStakeSetUpdateTime = 300;
+        nStakeSetUpdateTime = 300; // 5 minutes
 
         //MultiSend
         vMultiSend.clear();

@@ -1,12 +1,12 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin developers
 // Copyright (c) 2014-2015 The Dash developers
-// Copyright (c) 2015-2017 The PIVX developers
+// Copyright (c) 2015-2019 The PIVX developers
 // Copyright (c) 2018-2019 The Livenodes developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "wallet.h"
+#include "wallet/wallet.h"
 
 #include "base58.h"
 #include "checkpoints.h"
@@ -17,8 +17,10 @@
 #include "script/script.h"
 #include "script/sign.h"
 #include "spork.h"
+#include "stakeinput.h"
 #include "swifttx.h"
 #include "timedata.h"
+#include "txdb.h"
 #include "util.h"
 #include "utilmoneystr.h"
 
@@ -28,6 +30,7 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/thread.hpp>
 #include <boost/filesystem/operations.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 using namespace std;
 
@@ -41,6 +44,8 @@ bool bSpendZeroConfChange = true;
 bool bdisableSystemnotifications = false; // Those bubbles can be annoying and slow down the UI when you get lots of trx
 bool fSendFreeTransactions = false;
 bool fPayAtLeastCustomFee = true;
+bool fGlobalUnlockSpendCache = false;
+int64_t nStartupTime = GetTime(); //!< Client startup time for use with automint
 
 /**
  * Fees smaller than this (in duffs) are considered zero fee (for transaction creation)
@@ -245,23 +250,13 @@ bool CWallet::LoadMultiSig(const CScript& dest)
 
 bool CWallet::Unlock(const SecureString& strWalletPassphrase, bool anonymizeOnly)
 {
-    SecureString strWalletPassphraseFinal;
-
-    if (!IsLocked()) {
-        fWalletUnlockAnonymizeOnly = anonymizeOnly;
-        return true;
-    }
-
-    strWalletPassphraseFinal = strWalletPassphrase;
-
-
     CCrypter crypter;
     CKeyingMaterial vMasterKey;
 
     {
         LOCK(cs_wallet);
-        BOOST_FOREACH (const MasterKeyMap::value_type& pMasterKey, mapMasterKeys) {
-            if (!crypter.SetKeyFromPassphrase(strWalletPassphraseFinal, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
+        for (const MasterKeyMap::value_type& pMasterKey : mapMasterKeys) {
+            if (!crypter.SetKeyFromPassphrase(strWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
                 return false;
             if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey))
                 continue; // try another master key
@@ -285,7 +280,7 @@ bool CWallet::ChangeWalletPassphrase(const SecureString& strOldWalletPassphrase,
 
         CCrypter crypter;
         CKeyingMaterial vMasterKey;
-        BOOST_FOREACH (MasterKeyMap::value_type& pMasterKey, mapMasterKeys) {
+        for (MasterKeyMap::value_type& pMasterKey : mapMasterKeys) {
             if (!crypter.SetKeyFromPassphrase(strOldWalletPassphraseFinal, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod))
                 return false;
             if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey))
@@ -376,7 +371,7 @@ set<uint256> CWallet::GetConflicts(const uint256& txid) const
 
     std::pair<TxSpends::const_iterator, TxSpends::const_iterator> range;
 
-    BOOST_FOREACH (const CTxIn& txin, wtx.vin) {
+    for (const CTxIn& txin : wtx.vin) {
         if (mapTxSpends.count(txin.prevout) <= 1)
             continue; // No conflict if zero or one spends
         range = mapTxSpends.equal_range(txin.prevout);
@@ -453,7 +448,7 @@ void CWallet::AddToSpends(const uint256& wtxid)
     if (thisTx.IsCoinBase()) // Coinbases don't spend anything!
         return;
 
-    BOOST_FOREACH (const CTxIn& txin, thisTx.vin)
+    for (const CTxIn& txin : thisTx.vin)
         AddToSpends(txin.prevout, wtxid);
 }
 
@@ -484,7 +479,7 @@ bool CWallet::GetMasternodeVinAndKeys(CTxIn& txinRet, CPubKey& pubKeyRet, CKey& 
         return false;
     }
 
-    BOOST_FOREACH (COutput& out, vPossibleCoins)
+    for (COutput& out : vPossibleCoins)
         if (out.tx->GetHash() == txHash && out.i == nOutputIndex) // found it!
             return GetVinAndKeysFromOutput(out, txinRet, pubKeyRet, keyRet);
 
@@ -646,7 +641,7 @@ void CWallet::MarkDirty()
 {
     {
         LOCK(cs_wallet);
-        BOOST_FOREACH (PAIRTYPE(const uint256, CWalletTx) & item, mapWallet)
+        for (PAIRTYPE(const uint256, CWalletTx) & item : mapWallet)
             item.second.MarkDirty();
     }
 }
@@ -673,7 +668,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet)
                 wtx.nTimeReceived = GetAdjustedTime();
             wtx.nOrderPos = IncOrderPosNext();
             wtxOrdered.insert(make_pair(wtx.nOrderPos, TxPair(&wtx, (CAccountingEntry*)0)));
-
+            wtx.nTimeSmart = ComputeTimeSmart(wtx);
             AddToSpends(hash);
         }
 
@@ -751,7 +746,7 @@ void CWallet::SyncTransaction(const CTransaction& tx, const CBlock* pblock)
     // If a transaction changes 'conflicted' state, that changes the balance
     // available of the outputs it spends. So force those to be
     // recomputed, also:
-    BOOST_FOREACH (const CTxIn& txin, tx.vin) {
+    for (const CTxIn& txin : tx.vin) {
         if (mapWallet.count(txin.prevout.hash))
             mapWallet[txin.prevout.hash].MarkDirty();
     }
@@ -916,7 +911,7 @@ bool CWallet::IsDenominated(const CTransaction& tx) const
 
 bool CWallet::IsDenominatedAmount(CAmount nInputAmount) const
 {
-    BOOST_FOREACH (CAmount d, obfuScationDenominations)
+    for (CAmount d : obfuScationDenominations)
         if (nInputAmount == d)
             return true;
     return false;
@@ -947,6 +942,18 @@ int64_t CWalletTx::GetTxTime() const
 {
     int64_t n = nTimeSmart;
     return n ? n : nTimeReceived;
+}
+
+int64_t CWalletTx::GetComputedTxTime() const
+{
+    LOCK(cs_main);
+    if (ContainsZerocoins()) {
+        if (IsInMainChain())
+            return mapBlockIndex.at(hashBlock)->GetBlockTime();
+        else
+            return nTimeReceived;
+    }
+    return GetTxTime();
 }
 
 int CWalletTx::GetRequestCount() const
