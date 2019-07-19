@@ -17,7 +17,7 @@ AC_DEFUN([BITCOIN_QT_FAIL],[
 ])
 
 AC_DEFUN([BITCOIN_QT_CHECK],[
-    if test "x$bitcoin_enable_qt" != xno && test "x$bitcoin_qt_want_version" != xno; then
+  if test "x$bitcoin_enable_qt" != xno && test "x$bitcoin_qt_want_version" != xno; then
     true
     $1
   else
@@ -99,7 +99,7 @@ AC_DEFUN([BITCOIN_QT_CONFIGURE],[
     BITCOIN_QT_CHECK([_BITCOIN_QT_FIND_LIBS_WITHOUT_PKGCONFIG])
   fi
 
-   dnl This is ugly and complicated. Yuck. Works as follows:
+  dnl This is ugly and complicated. Yuck. Works as follows:
   dnl For Qt5, we can check a header to find out whether Qt is build
   dnl statically. When Qt is built statically, some plugins must be linked into
   dnl the final binary as well.
@@ -170,7 +170,7 @@ AC_DEFUN([BITCOIN_QT_CONFIGURE],[
         #endif
       ]],
       [[
-         #if defined(QT_REDUCE_RELOCATIONS)
+        #if defined(QT_REDUCE_RELOCATIONS)
         choke
         #endif
       ]])],
@@ -430,7 +430,6 @@ AC_DEFUN([_BITCOIN_QT_FIND_LIBS_WITH_PKGCONFIG],[
     QT_LIB_PREFIX=Qt5
     qt5_modules="Qt5Core Qt5Gui Qt5Network Qt5Widgets"
     BITCOIN_QT_CHECK([
-
       PKG_CHECK_MODULES([QT5], [$qt5_modules], [QT_INCLUDES="$QT5_CFLAGS"; QT_LIBS="$QT5_LIBS" have_qt=yes],[have_qt=no])
 
       if test "x$have_qt" != xyes; then
@@ -475,7 +474,6 @@ AC_DEFUN([_BITCOIN_QT_FIND_LIBS_WITHOUT_PKGCONFIG],[
       _BITCOIN_QT_CHECK_QT5
       _BITCOIN_QT_CHECK_QT58
     fi
-
     QT_LIB_PREFIX=Qt5
   ])
 
@@ -529,3 +527,4 @@ AC_DEFUN([_BITCOIN_QT_FIND_LIBS_WITHOUT_PKGCONFIG],[
   CXXFLAGS="$TEMP_CXXFLAGS"
   LIBS="$TEMP_LIBS"
 ])
+
