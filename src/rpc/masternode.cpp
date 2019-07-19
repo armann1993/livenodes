@@ -246,7 +246,7 @@ UniValue getmasternodecount (const UniValue& params, bool fHelp)
 
         UniValue inqueue_item{UniValue::VOBJ};
 
-        unsigned inqueue_count = 0u;
+        int inqueue_count = 0;
 
         if(chain_tip)
             mnodeman.GetNextMasternodeInQueueForPayment(chain_tip->nHeight, l, true, inqueue_count);
