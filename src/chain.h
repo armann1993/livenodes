@@ -205,7 +205,6 @@ public:
         nBits = 0;
         nNonce = 0;
         nAccumulatorCheckpoint = 0;
-        vMintDenominationsInBlock.clear();
     }
 
     CBlockIndex()
@@ -455,7 +454,6 @@ public:
         READWRITE(nNonce);
         //if(this->nVersion > 3) {
         READWRITE(nAccumulatorCheckpoint);
-        READWRITE(vMintDenominationsInBlock);
         //}
 
     }

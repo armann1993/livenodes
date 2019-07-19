@@ -17,6 +17,9 @@
 #include "amount.h"
 #include "checkpoints.h"
 #include "compat/sanity.h"
+#include "httpserver.h"
+#include "httprpc.h"
+#include "invalid.h"
 #include "key.h"
 #include "main.h"
 #include "masternode-payments.h"
@@ -489,7 +492,7 @@ std::string HelpMessage(HelpMessageMode mode)
         strUsage += HelpMessageOpt("-stopafterblockimport", strprintf(_("Stop running after importing blocks from disk (default: %u)"), 0));
         strUsage += HelpMessageOpt("-sporkkey=<privkey>", _("Enable spork administration functionality with the appropriate private key."));
     }
-    string debugCategories = "addrman, alert, bench, coindb, db, lock, rand, rpc, selectcoins, tor, mempool, net, proxy, pivx, (obfuscation, swiftx, masternode, mnpayments, mnbudget, zero)"; // Don't translate these and qt below
+    string debugCategories = "addrman, alert, bench, coindb, db, lock, rand, rpc, selectcoins, tor, mempool, net, proxy, http, libevent, pivx, (obfuscation, swiftx, masternode, mnpayments, mnbudget, zero, precompute, staking)"; // Don't translate these and qt below
     if (mode == HMM_BITCOIN_QT)
         debugCategories += ", qt";
     strUsage += HelpMessageOpt("-debug=<category>", strprintf(_("Output debugging information (default: %u, supplying <category> is optional)"), 0) + ". " +
@@ -979,6 +982,8 @@ bool AppInit2()
 
     fAlerts = GetBoolArg("-alerts", DEFAULT_ALERTS);
 
+    if (GetBoolArg("-peerbloomfilterszc", DEFAULT_PEERBLOOMFILTERS_ZC))
+        nLocalServices |= NODE_BLOOM_LIGHT_ZC;
 
     if (nLocalServices != NODE_BLOOM_LIGHT_ZC) {
 
@@ -1086,7 +1091,7 @@ bool AppInit2()
                 sourceFile.make_preferred();
                 backupFile.make_preferred();
                 if (boost::filesystem::exists(sourceFile)) {
-#if BOOST_VERSION >= 158000
+#if BOOST_VERSION >= 105800
                     try {
                         boost::filesystem::copy_file(sourceFile, backupFile);
                         LogPrintf("Creating backup of %s -> %s\n", sourceFile, backupFile);
@@ -1448,10 +1453,24 @@ bool AppInit2()
                     break;
                 }
 
-                uiInterface.InitMessage(_("Verifying blocks..."));
+                if (!fReindex) {
+                    uiInterface.InitMessage(_("Verifying blocks..."));
 
-                // Flag sent to validation code to let it know it can skip certain checks
-                fVerifyingBlocks = true;
+                    // Flag sent to validation code to let it know it can skip certain checks
+                    fVerifyingBlocks = true;
+
+                    {
+                        LOCK(cs_main);
+                        CBlockIndex *tip = chainActive[chainActive.Height()];
+                        RPCNotifyBlockChange(tip->GetBlockHash());
+                        if (tip && tip->nTime > GetAdjustedTime() + 2 * 60 * 60) {
+                            strLoadError = _("The block database contains a block which appears to be from the future. "
+                                             "This may be due to your computer's date and time being set incorrectly. "
+                                             "Only rebuild the block database if you are sure that your computer's date and time are correct");
+                            break;
+                        }
+                    }
+                }
 
             } catch (std::exception& e) {
                 if (fDebug) LogPrintf("%s\n", e.what());
