@@ -9,7 +9,7 @@
 #define BITCOIN_WALLETDB_H
 
 #include "amount.h"
-#include "db.h"
+#include "wallet/db.h"
 #include "key.h"
 #include "keystore.h"
 
@@ -21,6 +21,7 @@
 
 class CAccount;
 class CAccountingEntry;
+class CBitcoinAddress;
 struct CBlockLocator;
 class CKeyPool;
 class CMasterKey;
@@ -151,6 +152,6 @@ private:
     bool WriteAccountingEntry(const uint64_t nAccEntryNum, const CAccountingEntry& acentry);
 };
 
-bool BackupWallet(const CWallet& wallet, const std::string& strDest);
+bool BackupWallet(const CWallet& wallet, const boost::filesystem::path& strDest, bool fEnableCustom = true);
 
 #endif // BITCOIN_WALLETDB_H
