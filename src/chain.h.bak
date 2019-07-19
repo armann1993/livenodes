@@ -453,10 +453,10 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
-        //if(this->nVersion > 3) {
-        READWRITE(nAccumulatorCheckpoint);
-        READWRITE(vMintDenominationsInBlock);
-        //}
+        if(this->nVersion > 3) {
+            READWRITE(nAccumulatorCheckpoint);
+           READWRITE(vMintDenominationsInBlock);
+        }
 
     }
 
