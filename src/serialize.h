@@ -49,33 +49,6 @@ inline T* NCONST_PTR(const T* val)
 // i.e. anything that supports .read(char*, size_t) and .write(char*, size_t)
 //
 
-template <class T, class TAl>
-inline T* begin_ptr(std::vector<T, TAl>& v)
-{
-    return v.empty() ? NULL : &v[0];
-}
-
-/** Get begin pointer of vector (const version) */
-template <class T, class TAl>
-inline const T* begin_ptr(const std::vector<T, TAl>& v)
-{
-    return v.empty() ? NULL : &v[0];
-}
-
-/** Get end pointer of vector (non-const version) */
-template <class T, class TAl>
-inline T* end_ptr(std::vector<T, TAl>& v)
-{
-    return v.empty() ? NULL : (&v[0] + v.size());
-}
-
-/** Get end pointer of vector (const version) */
-template <class T, class TAl>
-inline const T* end_ptr(const std::vector<T, TAl>& v)
-{
-    return v.empty() ? NULL : (&v[0] + v.size());
-}
-
 enum {
     // primary actions
     SER_NETWORK = (1 << 0),
@@ -429,7 +402,6 @@ I ReadVarInt(Stream& is)
 
 #define FLATDATA(obj) REF(CFlatData((char*)&(obj), (char*)&(obj) + sizeof(obj)))
 #define VARINT(obj) REF(WrapVarInt(REF(obj)))
-#define COMPACTSIZE(obj) REF(CCompactSize(REF(obj)))
 #define LIMITED_STRING(obj, n) REF(LimitedString<n>(REF(obj)))
 
 /** 
@@ -496,28 +468,6 @@ public:
     void Unserialize(Stream& s, int, int)
     {
         n = ReadVarInt<Stream, I>(s);
-    }
-};
-
-class CCompactSize
-{
-protected:
-    uint64_t &n;
-public:
-    CCompactSize(uint64_t& nIn) : n(nIn) { }
-
-    unsigned int GetSerializeSize(int, int) const {
-        return GetSizeOfCompactSize(n);
-    }
-
-    template<typename Stream>
-    void Serialize(Stream &s, int, int) const {
-        WriteCompactSize<Stream>(s, n);
-    }
-
-    template<typename Stream>
-    void Unserialize(Stream& s, int, int) {
-        n = ReadCompactSize<Stream>(s);
     }
 };
 
