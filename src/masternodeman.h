@@ -14,6 +14,7 @@
 #include "sync.h"
 #include "util.h"
 
+#define MASTERNODES_DUMP_SECONDS (15 * 60)
 #define MASTERNODES_DSEG_SECONDS (3 * 60 * 60)
 
 using namespace std;
@@ -102,7 +103,7 @@ public:
     static CValidationState GetInputCheckingTx(const CTxIn& vin, CMutableTransaction&);
 
     /// Add an entry
-    bool Add(const CMasternode& mn);
+    bool Add(CMasternode& mn);
 
     ///return all MN's
     std::vector<CMasternode> GetFullMasternodeMap();
@@ -119,12 +120,12 @@ public:
     /// Clear Masternode vector
     void Clear();
 
-    unsigned CountEnabled(unsigned mnlevel = CMasternode::LevelValue::UNSPECIFIED, int protocolVersion = -1);
+    int CountEnabled(unsigned mnlevel = CMasternode::LevelValue::UNSPECIFIED, int protocolVersion = -1);
     std::map<unsigned, int> CountEnabledByLevels(int protocolVersion = -1);
 
     void CountNetworks(int protocolVersion, int& ipv4, int& ipv6, int& onion);
 
-    bool DsegUpdate(CNode* pnode);
+    void DsegUpdate(CNode* pnode);
     bool WinnersUpdate(CNode* node);
 
     /// Find an entry
@@ -134,7 +135,7 @@ public:
     CMasternode* Find(const CService& service);
 
     /// Find an entry in the masternode list that is next to be paid
-    CMasternode* GetNextMasternodeInQueueForPayment(int nBlockHeight, unsigned mnlevel, bool fFilterSigTime, unsigned& nCount);
+    CMasternode* GetNextMasternodeInQueueForPayment(int nBlockHeight, unsigned mnlevel, bool fFilterSigTime, int& nCount);
 
     /// Find a random entry
     CMasternode* FindRandomNotInVec(unsigned mnlevel, std::vector<CTxIn>& vecToExclude, int protocolVersion = -1);
@@ -166,6 +167,8 @@ public:
     std::string ToString() const;
 
     void Remove(CTxIn vin);
+
+    int GetEstimatedMasternodes(int nBlock);
 
     /// Update masternode list and maps using provided CMasternodeBroadcast
     void UpdateMasternodeList(CMasternodeBroadcast mnb);
