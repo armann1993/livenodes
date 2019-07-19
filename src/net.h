@@ -207,6 +207,8 @@ public:
             return false;
         return (hdr.nMessageSize == nDataPos);
     }
+    
+    const uint256& GetMessageHash() const;
 
     void SetVersion(int nVersionIn)
     {

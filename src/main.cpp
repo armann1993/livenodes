@@ -2160,7 +2160,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         flags |= SCRIPT_VERIFY_DERSIG;
     }
 
-    CBlockUndo blockundo;
+
 
     CCheckQueueControl<CScriptCheck> control(fScriptChecks && nScriptCheckThreads ? &scriptcheckqueue : NULL);
 
@@ -5471,9 +5471,9 @@ bool ProcessMessages(CNode* pfrom)
                     msg.complete() ? "Y" : "N");
 
         /////////////////////////////////////////////////
-       	CMessageHeader& hdr = msg.hdr;
-       	string strCommand = hdr.GetCommand();
-       	if (fDebug) LogPrintf("\e[32m%s\e[0m\n", strCommand.c_str());
+       	//CMessageHeader& hdr = msg.hdr;
+       	//string strCommand = hdr.GetCommand();
+       	//if (fDebug) LogPrintf("\e[32m%s\e[0m\n", strCommand.c_str());
         /////////////////////////////////////////////////
 
         // end, if an incomplete message is found
