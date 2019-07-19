@@ -21,18 +21,28 @@
 
 #include <univalue.h>
 
+class CRPCCommand;
+
+namespace RPCServer
+{
+    void OnStarted(boost::function<void ()> slot);
+    void OnStopped(boost::function<void ()> slot);
+    void OnPreCommand(boost::function<void (const CRPCCommand&)> slot);
+    void OnPostCommand(boost::function<void (const CRPCCommand&)> slot);
+}
 
 class CBlockIndex;
 class CNetAddr;
 
-class AcceptedConnection
+class JSONRequest
 {
 public:
-    virtual ~AcceptedConnection() {}
+    UniValue id;
+    std::string strMethod;
+    UniValue params;
 
-    virtual std::iostream& stream() = 0;
-    virtual std::string peer_address_to_string() const = 0;
-    virtual void close() = 0;
+    JSONRequest() { id = NullUniValue; }
+    void parse(const UniValue& valRequest);
 };
 
 /** Start RPC threads */
@@ -74,14 +84,46 @@ void RPCTypeCheck(const UniValue& params,
 void RPCTypeCheckObj(const UniValue& o,
                   const std::map<std::string, UniValue::VType>& typesExpected, bool fAllowNull=false);
 
+/** Opaque base class for timers returned by NewTimerFunc.
+ * This provides no methods at the moment, but makes sure that delete
+ * cleans up the whole state.
+ */
+class RPCTimerBase
+{
+public:
+    virtual ~RPCTimerBase() {}
+};
+
 /**
- * Run func nSeconds from now. Uses boost deadline timers.
+* RPC timer "driver".
+ */
+class RPCTimerInterface
+{
+public:
+    virtual ~RPCTimerInterface() {}
+    /** Implementation name */
+    virtual const char *Name() = 0;
+    /** Factory function for timers.
+     * RPC will call the function to create a timer that will call func in *millis* milliseconds.
+     * @note As the RPC mechanism is backend-neutral, it can use different implementations of timers.
+     * This is needed to cope with the case in which there is no HTTP server, but
+     * only GUI RPC console, and to break the dependency of pcserver on httprpc.
+     */
+    virtual RPCTimerBase* NewTimer(boost::function<void(void)>& func, int64_t millis) = 0;
+};
+
+/** Set factory function for timers */
+void RPCSetTimerInterface(RPCTimerInterface *iface);
+/** Set factory function for timers, but only if unset */
+void RPCSetTimerInterfaceIfUnset(RPCTimerInterface *iface);
+/** Unset factory function for timers */
+void RPCUnsetTimerInterface(RPCTimerInterface *iface);
+
+/**
+ * Run func nSeconds from now.
  * Overrides previous timer <name> (if any).
  */
 void RPCRunLater(const std::string& name, boost::function<void(void)> func, int64_t nSeconds);
-
-//! Convert boost::asio address to CNetAddr
-extern CNetAddr BoostAsioToCNetAddr(boost::asio::ip::address address);
 
 typedef UniValue(*rpcfn_type)(const UniValue& params, bool fHelp);
 
@@ -106,7 +148,7 @@ private:
 
 public:
     CRPCTable();
-    const CRPCCommand* operator[](std::string name) const;
+    const CRPCCommand* operator[](const std::string& name) const;
     std::string help(std::string name) const;
 
     /**
@@ -149,12 +191,13 @@ extern std::string HelpRequiringPassphrase();
 extern std::string HelpExampleCli(std::string methodname, std::string args);
 extern std::string HelpExampleRpc(std::string methodname, std::string args);
 
-extern void EnsureWalletIsUnlocked();
+extern void EnsureWalletIsUnlocked(bool fAllowAnonOnly = false);
 
-extern UniValue getconnectioncount(const UniValue& params, bool fHelp); // in rpcnet.cpp
+extern UniValue getconnectioncount(const UniValue& params, bool fHelp); // in rpc/net.cpp
 extern UniValue getpeerinfo(const UniValue& params, bool fHelp);
 extern UniValue ping(const UniValue& params, bool fHelp);
 extern UniValue addnode(const UniValue& params, bool fHelp);
+extern UniValue disconnectnode(const UniValue& params, bool fHelp);
 extern UniValue getaddednodeinfo(const UniValue& params, bool fHelp);
 extern UniValue getnettotals(const UniValue& params, bool fHelp);
 extern UniValue setban(const UniValue& params, bool fHelp);
@@ -169,8 +212,9 @@ extern UniValue importwallet(const UniValue& params, bool fHelp);
 extern UniValue bip38encrypt(const UniValue& params, bool fHelp);
 extern UniValue bip38decrypt(const UniValue& params, bool fHelp);
 
-extern UniValue getgenerate(const UniValue& params, bool fHelp); // in rpcmining.cpp
+extern UniValue getgenerate(const UniValue& params, bool fHelp); // in rpc/mining.cpp
 extern UniValue setgenerate(const UniValue& params, bool fHelp);
+extern UniValue generate(const UniValue& params, bool fHelp);
 extern UniValue getnetworkhashps(const UniValue& params, bool fHelp);
 extern UniValue gethashespersec(const UniValue& params, bool fHelp);
 extern UniValue getmininginfo(const UniValue& params, bool fHelp);
@@ -219,7 +263,7 @@ extern UniValue getstakesplitthreshold(const UniValue& params, bool fHelp);
 extern UniValue multisend(const UniValue& params, bool fHelp);
 extern UniValue autocombinerewards(const UniValue& params, bool fHelp);
 
-extern UniValue getrawtransaction(const UniValue& params, bool fHelp); // in rcprawtransaction.cpp
+extern UniValue getrawtransaction(const UniValue& params, bool fHelp); // in rpc/rawtransaction.cpp
 extern UniValue listunspent(const UniValue& params, bool fHelp);
 extern UniValue lockunspent(const UniValue& params, bool fHelp);
 extern UniValue listlockunspent(const UniValue& params, bool fHelp);
@@ -229,8 +273,12 @@ extern UniValue decodescript(const UniValue& params, bool fHelp);
 extern UniValue signrawtransaction(const UniValue& params, bool fHelp);
 extern UniValue sendrawtransaction(const UniValue& params, bool fHelp);
 
-extern UniValue getblockcount(const UniValue& params, bool fHelp); // in rpcblockchain.cpp
+extern UniValue findserial(const UniValue& params, bool fHelp); // in rpc/blockchain.cpp
+extern UniValue getblockcount(const UniValue& params, bool fHelp);
 extern UniValue getbestblockhash(const UniValue& params, bool fHelp);
+extern UniValue waitfornewblock(const UniValue& params, bool fHelp);
+extern UniValue waitforblock(const UniValue& params, bool fHelp);
+extern UniValue waitforblockheight(const UniValue& params, bool fHelp);
 extern UniValue getdifficulty(const UniValue& params, bool fHelp);
 extern UniValue settxfee(const UniValue& params, bool fHelp);
 extern UniValue getmempoolinfo(const UniValue& params, bool fHelp);
@@ -248,10 +296,13 @@ extern UniValue reconsiderblock(const UniValue& params, bool fHelp);
 extern UniValue getinvalid(const UniValue& params, bool fHelp);
 
 extern UniValue obfuscation(const UniValue& params, bool fHelp); // in rpcmasternode.cpp
-extern UniValue getpoolinfo(const UniValue& params, bool fHelp);
+extern UniValue getpoolinfo(const UniValue& params, bool fHelp); // in rpc/masternode.cpp
 extern UniValue masternode(const UniValue& params, bool fHelp);
 extern UniValue listmasternodes(const UniValue& params, bool fHelp);
 extern UniValue getmasternodecount(const UniValue& params, bool fHelp);
+extern UniValue createmasternodebroadcast(const UniValue& params, bool fHelp);
+extern UniValue decodemasternodebroadcast(const UniValue& params, bool fHelp);
+extern UniValue relaymasternodebroadcast(const UniValue& params, bool fHelp);
 extern UniValue masternodeconnect(const UniValue& params, bool fHelp);
 extern UniValue masternodecurrent(const UniValue& params, bool fHelp);
 extern UniValue masternodedebug(const UniValue& params, bool fHelp);
@@ -272,10 +323,10 @@ extern UniValue verifymessage(const UniValue& params, bool fHelp);
 extern UniValue setmocktime(const UniValue& params, bool fHelp);
 extern UniValue getstakingstatus(const UniValue& params, bool fHelp);
 
-// in rest.cpp
-extern bool HTTPReq_REST(AcceptedConnection* conn,
-    std::string& strURI,
-    std::map<std::string, std::string>& mapHeaders,
-    bool fRun);
+bool StartRPC();
+void InterruptRPC();
+void StopRPC();
+std::string JSONRPCExecBatch(const UniValue& vReq);
+void RPCNotifyBlockChange(const uint256 nHeight);
 
 #endif // BITCOIN_RPCSERVER_H
