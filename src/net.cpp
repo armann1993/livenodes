@@ -791,14 +791,6 @@ int CNetMessage::readData(const char* pch, unsigned int nBytes)
     return nCopy;
 }
 
-const uint256& CNetMessage::GetMessageHash() const
-{
-    assert(complete());
-    if (data_hash.IsNull())
-        hasher.Finalize(data_hash.begin());
-    return data_hash;
-}
-
 
 // requires LOCK(cs_vSend)
 void SocketSendData(CNode* pnode)
