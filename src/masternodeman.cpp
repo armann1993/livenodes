@@ -664,7 +664,7 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
     int nTenthNetwork = CountEnabled(mnlevel) / 10;
     int nCountTenth = 0;
     uint256 nHigh = 0;
-    BOOST_FOREACH (PAIRTYPE(int64_t, CTxIn) & s, vecMasternodeLastPaid) {
+    for (PAIRTYPE(int64_t, CTxIn) & s : vecMasternodeLastPaid) {
         CMasternode* pmn = Find(s.second);
         if (!pmn) break;
 

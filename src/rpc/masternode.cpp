@@ -225,22 +225,22 @@ UniValue getmasternodecount (const UniValue& params, bool fHelp)
 
         UniValue total_item{UniValue::VOBJ};
 
-        total_item.push_back(Pair("level", (int64_t)l));
+        total_item.push_back(Pair("level", l));
         total_item.push_back(Pair("count", mnodeman.size(l)));
 
         total.push_back(total_item);
 
         UniValue stable_item{UniValue::VOBJ};
 
-        stable_item.push_back(Pair("level", (int64_t)l));
+        stable_item.push_back(Pair("level", l));
         stable_item.push_back(Pair("count", mnodeman.stable_size(l)));
 
         stable.push_back(stable_item);
 
         UniValue enabled_item{UniValue::VOBJ};
 
-        enabled_item.push_back(Pair("level", (int64_t)l));
-        enabled_item.push_back(Pair("count", (int64_t)mnodeman.CountEnabled(l)));
+        enabled_item.push_back(Pair("level", l));
+        enabled_item.push_back(Pair("count", mnodeman.CountEnabled(l)));
 
         enabled.push_back(enabled_item);
 
@@ -251,15 +251,15 @@ UniValue getmasternodecount (const UniValue& params, bool fHelp)
         if(chain_tip)
             mnodeman.GetNextMasternodeInQueueForPayment(chain_tip->nHeight, l, true, inqueue_count);
 
-        inqueue_item.push_back(Pair("level", (int64_t)l));
-        inqueue_item.push_back(Pair("count", (int64_t)inqueue_count));
+        inqueue_item.push_back(Pair("level", l));
+        inqueue_item.push_back(Pair("count", inqueue_count));
 
         inqueue.push_back(inqueue_item);
 
         UniValue obfcomat_item{UniValue::VOBJ};
 
-        obfcomat_item.push_back(Pair("level", (int64_t)l));
-        obfcomat_item.push_back(Pair("count", (int64_t)mnodeman.CountEnabled(l, ActiveProtocol())));
+        obfcomat_item.push_back(Pair("level", l));
+        obfcomat_item.push_back(Pair("count", mnodeman.CountEnabled(l, ActiveProtocol())));
 
         obfcompat.push_back(obfcomat_item);
 
