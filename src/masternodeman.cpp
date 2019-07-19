@@ -606,7 +606,7 @@ CMasternode* CMasternodeMan::Find(const CService& service)
 //
 // Deterministically select the oldest/best masternode to pay on the network
 //
-CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight, unsigned mnlevel, bool fFilterSigTime, unsigned& nCount)
+CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight, unsigned mnlevel, bool fFilterSigTime, int& nCount)
 {
     LOCK(cs);
 
@@ -648,7 +648,7 @@ CMasternode* CMasternodeMan::GetNextMasternodeInQueueForPayment(int nBlockHeight
         vecMasternodeLastPaid.emplace_back(mn.SecondsSincePayment(), mn.vin);
     }
 
-    nCount = vecMasternodeLastPaid.size();
+    nCount = (int)vecMasternodeLastPaid.size();
 
     //when the network is in the process of upgrading, don't penalize nodes that recently restarted
     if (fFilterSigTime && nCount < nMnCount / 3)
