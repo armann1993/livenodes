@@ -24,6 +24,8 @@
 #include "util.h"
 #include "utilmoneystr.h"
 
+#include "denomination_functions.h"
+#include "libzerocoin/Denominations.h"
 #include <assert.h>
 #include <math.h>
 
@@ -1123,14 +1125,14 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
 void CWallet::ReacceptWalletTransactions()
 {
     LOCK2(cs_main, cs_wallet);
-    BOOST_FOREACH (PAIRTYPE(const uint256, CWalletTx) & item, mapWallet) {
+    for (PAIRTYPE(const uint256, CWalletTx) & item : mapWallet) {
         const uint256& wtxid = item.first;
         CWalletTx& wtx = item.second;
         assert(wtx.GetHash() == wtxid);
 
         int nDepth = wtx.GetDepthInMainChain();
 
-        if (!wtx.IsCoinBase() && nDepth < 0 && !wtx.IsCoinStake()) {
+        if (!wtx.IsCoinBase() && !wtx.IsCoinStake() && nDepth < 0) {
             // Try to add to memory pool
             LOCK(mempool.cs);
             wtx.AcceptToMemoryPool(false);
@@ -1199,14 +1201,14 @@ void CWallet::ResendWalletTransactions()
         LOCK(cs_wallet);
         // Sort them in chronological order
         multimap<unsigned int, CWalletTx*> mapSorted;
-        BOOST_FOREACH (PAIRTYPE(const uint256, CWalletTx) & item, mapWallet) {
+        for (PAIRTYPE(const uint256, CWalletTx) & item : mapWallet) {
             CWalletTx& wtx = item.second;
             // Don't rebroadcast until it's had plenty of time that
             // it should have gotten in already by now.
             if (nTimeBestReceived - (int64_t)wtx.nTimeReceived > 5 * 60)
                 mapSorted.insert(make_pair(wtx.nTimeReceived, &wtx));
         }
-        BOOST_FOREACH (PAIRTYPE(const unsigned int, CWalletTx*) & item, mapSorted) {
+        for (PAIRTYPE(const unsigned int, CWalletTx*) & item : mapSorted) {
             CWalletTx& wtx = *item.second;
             wtx.RelayWalletTransaction();
         }
@@ -1228,6 +1230,7 @@ CAmount CWallet::GetBalance() const
         LOCK2(cs_main, cs_wallet);
         for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
             const CWalletTx* pcoin = &(*it).second;
+
             if (pcoin->IsTrusted())
                 nTotal += pcoin->GetAvailableCredit();
         }
@@ -1370,7 +1373,6 @@ CAmount CWallet::GetUnconfirmedBalance() const
 
 CAmount CWallet::GetImmatureBalance() const
 {
-    LOCK(cs_main);
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
@@ -1413,7 +1415,6 @@ CAmount CWallet::GetUnconfirmedWatchOnlyBalance() const
 
 CAmount CWallet::GetImmatureWatchOnlyBalance() const
 {
-    LOCK(cs_main);
     CAmount nTotal = 0;
     {
         LOCK2(cs_main, cs_wallet);
@@ -1425,10 +1426,31 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
     return nTotal;
 }
 
+CAmount CWallet::GetLockedWatchOnlyBalance() const
+{
+    CAmount nTotal = 0;
+    {
+        LOCK2(cs_main, cs_wallet);
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
+            const CWalletTx* pcoin = &(*it).second;
+            if (pcoin->IsTrusted() && pcoin->GetDepthInMainChain() > 0)
+                nTotal += pcoin->GetLockedWatchOnlyCredit();
+        }
+    }
+    return nTotal;
+}
+
 /**
  * populate vCoins with vector of available COutputs.
  */
-void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl* coinControl, bool fIncludeZeroValue, AvailableCoinsType nCoinType, bool fUseIX) const
+void CWallet::AvailableCoins(
+        vector<COutput>& vCoins,
+        bool fOnlyConfirmed,
+        const CCoinControl* coinControl,
+        bool fIncludeZeroValue,
+        AvailableCoinsType nCoinType,
+        bool fUseIX,
+        int nWatchonlyConfig) const
 {
     vCoins.clear();
 
@@ -1480,6 +1502,12 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
                 if (mine == ISMINE_NO)
                     continue;
 
+                if ((mine == ISMINE_MULTISIG || mine == ISMINE_SPENDABLE) && nWatchonlyConfig == 2)
+                    continue;
+
+                if (mine == ISMINE_WATCH_ONLY && nWatchonlyConfig == 1)
+                    continue;
+
                 if (IsLockedCoin((*it).first, i) && nCoinType != ONLY_DEPOSIT)
                     continue;
                 if (pcoin->vout[i].nValue <= 0 && !fIncludeZeroValue)
@@ -1504,7 +1532,7 @@ map<CBitcoinAddress, vector<COutput> > CWallet::AvailableCoinsByAddress(bool fCo
     AvailableCoins(vCoins, fConfirmed);
 
     map<CBitcoinAddress, vector<COutput> > mapCoins;
-    BOOST_FOREACH (COutput out, vCoins) {
+    for (COutput out : vCoins) {
         if (maxCoinValue > 0 && out.tx->vout[out.i].nValue > maxCoinValue)
             continue;
 
@@ -1567,7 +1595,7 @@ bool less_then_denom(const COutput& out1, const COutput& out2)
 
     bool found1 = false;
     bool found2 = false;
-    BOOST_FOREACH (CAmount d, obfuScationDenominations) // loop through predefined denoms
+    for (CAmount d : obfuScationDenominations) // loop through predefined denoms
     {
         if (pcoin1->vout[out1.i].nValue == d) found1 = true;
         if (pcoin2->vout[out2.i].nValue == d) found2 = true;
@@ -1575,8 +1603,10 @@ bool less_then_denom(const COutput& out1, const COutput& out2)
     return (!found1 && found2);
 }
 
-bool CWallet::SelectStakeCoins(std::set<std::pair<const CWalletTx*, unsigned int> >& setCoins, CAmount nTargetAmount) const
+bool CWallet::SelectStakeCoins(std::list<std::unique_ptr<CStakeInput> >& listInputs, CAmount nTargetAmount, bool fPrecompute)
 {
+    LOCK(cs_main);
+    //Add LNO
     vector<COutput> vCoins;
     AvailableCoins(vCoins, true, NULL, false, STAKABLE_COINS);
     CAmount nAmountSelected = 0;
