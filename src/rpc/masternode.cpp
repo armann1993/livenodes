@@ -418,6 +418,7 @@ UniValue startmasternode (const UniValue& params, bool fHelp)
                 continue;
             CTxIn vin = CTxIn(uint256(mne.getTxHash()), uint32_t(nIndex));
             CMasternode* pmn = mnodeman.Find(vin);
+            CMasternodeBroadcast mnb;
 
             if (pmn != NULL) {
                 if (strCommand == "missing") continue;
