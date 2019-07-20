@@ -49,6 +49,32 @@ inline T* NCONST_PTR(const T* val)
 // i.e. anything that supports .read(char*, size_t) and .write(char*, size_t)
 //
 
+template <class T, class TAl>
+inline T* begin_ptr(std::vector<T, TAl>& v)
+{
+    return v.empty() ? NULL : &v[0];
+}
+
+/** Get begin pointer of vector (const version) */
+template <class T, class TAl>
+inline const T* begin_ptr(const std::vector<T, TAl>& v)
+{
+    return v.empty() ? NULL : &v[0];
+}
+
+/** Get end pointer of vector (non-const version) */
+template <class T, class TAl>
+inline T* end_ptr(std::vector<T, TAl>& v)
+{
+    return v.empty() ? NULL : (&v[0] + v.size());
+}
+
+/** Get end pointer of vector (const version) */
+template <class T, class TAl>
+inline const T* end_ptr(const std::vector<T, TAl>& v)
+{
+    return v.empty() ? NULL : (&v[0] + v.size());
+}
 enum {
     // primary actions
     SER_NETWORK = (1 << 0),
