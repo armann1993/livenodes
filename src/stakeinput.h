@@ -9,9 +9,6 @@
 #include "streams.h"
 #include "uint256.h"
 
-#include "denomination_functions.h"
-#include "libzerocoin/Denominations.h"
-
 class CKeyStore;
 class CWallet;
 class CWalletTx;
