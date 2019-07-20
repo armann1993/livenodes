@@ -30,7 +30,7 @@
 
 using namespace std;
 
-void EnsureWalletIsUnlocked();
+void EnsureWalletIsUnlocked(bool fAllowAnonOnly);
 
 std::string static EncodeDumpTime(int64_t nTime)
 {
@@ -54,7 +54,7 @@ int64_t static DecodeDumpTime(const std::string& str)
 std::string static EncodeDumpString(const std::string& str)
 {
     std::stringstream ret;
-    BOOST_FOREACH (unsigned char c, str) {
+    for (unsigned char c : str) {
         if (c <= 32 || c >= 128 || c == '%') {
             ret << '%' << HexStr(&c, &c + 1);
         } else {
@@ -96,6 +96,8 @@ UniValue importprivkey(const UniValue& params, bool fHelp)
             "\nImport the private key with rescan\n" + HelpExampleCli("importprivkey", "\"mykey\"") +
             "\nImport using a label and without rescan\n" + HelpExampleCli("importprivkey", "\"mykey\" \"testing\" false") +
             "\nAs a JSON-RPC call\n" + HelpExampleRpc("importprivkey", "\"mykey\", \"testing\", false"));
+    
+    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     EnsureWalletIsUnlocked();
 
@@ -160,6 +162,7 @@ UniValue importaddress(const UniValue& params, bool fHelp)
             HelpExampleCli("importaddress", "\"myaddress\"") +
             "\nImport using a label without rescan\n" + HelpExampleCli("importaddress", "\"myaddress\" \"testing\" false") +
             "\nAs a JSON-RPC call\n" + HelpExampleRpc("importaddress", "\"myaddress\", \"testing\", false"));
+    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     CScript script;
 
@@ -221,6 +224,7 @@ UniValue importwallet(const UniValue& params, bool fHelp)
             HelpExampleCli("dumpwallet", "\"test\"") +
             "\nImport the wallet\n" + HelpExampleCli("importwallet", "\"test\"") +
             "\nImport using the json rpc call\n" + HelpExampleRpc("importwallet", "\"test\""));
+    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     EnsureWalletIsUnlocked();
 
@@ -318,6 +322,7 @@ UniValue dumpprivkey(const UniValue& params, bool fHelp)
             "\nExamples:\n" +
             HelpExampleCli("dumpprivkey", "\"myaddress\"") + HelpExampleCli("importprivkey", "\"mykey\"") + HelpExampleRpc("dumpprivkey", "\"myaddress\""));
 
+    LOCK2(cs_main, pwalletMain->cs_wallet);
     EnsureWalletIsUnlocked();
 
     string strAddress = params[0].get_str();
@@ -345,7 +350,12 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
             "\nExamples:\n" +
             HelpExampleCli("dumpwallet", "\"test\"") + HelpExampleRpc("dumpwallet", "\"test\""));
 
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
     EnsureWalletIsUnlocked();
+
+    boost::filesystem::path filepath = params[0].get_str().c_str();
+    filepath = boost::filesystem::absolute(filepath);
 
     ofstream file;
     file.open(params[0].get_str().c_str());
@@ -389,7 +399,11 @@ UniValue dumpwallet(const UniValue& params, bool fHelp)
     file << "\n";
     file << "# End of dump\n";
     file.close();
-    return NullUniValue;
+
+    UniValue reply(UniValue::VOBJ);
+    reply.push_back(Pair("filename", filepath.string()));
+
+    return reply;
 }
 
 UniValue bip38encrypt(const UniValue& params, bool fHelp)
@@ -404,6 +418,7 @@ UniValue bip38encrypt(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "\"key\"                (string) The encrypted private key\n"
             "\nExamples:\n");
+    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     EnsureWalletIsUnlocked();
 
@@ -443,12 +458,13 @@ UniValue bip38decrypt(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "\"key\"                (string) The decrypted private key\n"
             "\nExamples:\n");
+    LOCK2(cs_main, pwalletMain->cs_wallet);
 
     EnsureWalletIsUnlocked();
 
     /** Collect private key and passphrase **/
-    string strPassphrase = params[0].get_str();
-    string strKey = params[1].get_str();
+    string strKey = params[0].get_str();
+    string strPassphrase = params[1].get_str();
 
     uint256 privKey;
     bool fCompressed;

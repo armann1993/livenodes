@@ -13,6 +13,7 @@
 #include "main.h"
 #include "tinyformat.h"
 #include "utilstrencodings.h"
+#include "transaction.h"
 
 
 extern bool GetTransaction(const uint256 &hash, CTransaction &txOut, uint256 &hashBlock, bool fAllowSlow);
