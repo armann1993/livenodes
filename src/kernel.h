@@ -6,7 +6,6 @@
 #define BITCOIN_KERNEL_H
 
 #include "main.h"
-#include "stakeinput.h"
 
 
 // MODIFIER_INTERVAL: time to elapse before new modifier is computed

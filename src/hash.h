@@ -16,10 +16,12 @@
 #include "version.h"
 
 #include "crypto/sph_blake.h"
+#include "crypto/sph_bmw.h"
 #include "crypto/sph_groestl.h"
 #include "crypto/sph_jh.h"
 #include "crypto/sph_keccak.h"
 #include "crypto/sph_skein.h"
+#include "crypto/sha512.h"
 
 #include <iomanip>
 #include <openssl/sha.h>
@@ -110,6 +112,24 @@ inline void Hash(void* in, unsigned int len, unsigned char* out)
     SHA256_Init(&sha256);
     SHA256_Update(&sha256, in, len);
     SHA256_Final(out, &sha256);
+}
+
+/** Compute the 512-bit hash of an object. */
+template <typename T1>
+inline uint512 Hash512(const T1 pbegin, const T1 pend)
+{
+    static const unsigned char pblank[1] = {};
+    uint512 result;
+    CHash512().Write(pbegin == pend ? pblank : (const unsigned char*)&pbegin[0], (pend - pbegin) * sizeof(pbegin[0])).Finalize((unsigned char*)&result);
+    return result;
+}
+template <typename T1, typename T2>
+inline uint512 Hash512(const T1 p1begin, const T1 p1end, const T2 p2begin, const T2 p2end)
+{
+    static const unsigned char pblank[1] = {};
+    uint512 result;
+    CHash512().Write(p1begin == p1end ? pblank : (const unsigned char*)&p1begin[0], (p1end - p1begin) * sizeof(p1begin[0])).Write(p2begin == p2end ? pblank : (const unsigned char*)&p2begin[0], (p2end - p2begin) * sizeof(p2begin[0])).Finalize((unsigned char*)&result);
+    return result;
 }
 
 /** Compute the 256-bit hash of an object. */
