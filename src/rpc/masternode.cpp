@@ -9,6 +9,7 @@
 #include "db.h"
 #include "init.h"
 #include "main.h"
+#include "masternode.h"
 #include "masternode-payments.h"
 #include "masternodeconfig.h"
 #include "masternodeman.h"
