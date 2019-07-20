@@ -314,6 +314,11 @@ public:
     {
         SetCollateralAddress(Params().ObfuscationPoolDummyAddress());
     }
+    
+    void SetMinBlockSpacing(int minBlockSpacingIn)
+    {
+        minBlockSpacing = minBlockSpacingIn;
+    }
 
     bool SetCollateralAddress(std::string strAddress);
     void Reset();
